@@ -12,6 +12,7 @@ mod secrets;
 mod shortcut;
 mod state;
 mod tray;
+mod updates;
 mod windows;
 
 use tauri::{AppHandle, Manager, RunEvent};
@@ -30,6 +31,7 @@ fn main() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(shortcut::handle)
@@ -48,6 +50,8 @@ fn main() {
             commands::request_microphone,
             commands::open_permission_settings,
             commands::get_shortcut_error,
+            commands::get_pending_update,
+            commands::restart_to_update,
             commands::get_phase,
             commands::get_last_dictation,
         ])
@@ -71,6 +75,7 @@ fn main() {
             #[cfg(target_os = "macos")]
             activation::show_settings_when_activated(app.handle());
             overlay::prepare(app.handle());
+            updates::check_periodically(app.handle());
             if needs_setup {
                 windows::show_settings(app.handle());
             }

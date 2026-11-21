@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Utter",
-  "version": "0.1.0",
   "identifier": "dev.utter.desktop",
   "build": {
     "beforeDevCommand": "bun run dev:web",
@@ -48,7 +47,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "category": "Productivity",
     "shortDescription": "Context-aware voice typing with your own API keys",
     "license": "MIT",
@@ -63,6 +65,15 @@
       "minimumSystemVersion": "13.0",
       "entitlements": "Entitlements.plist",
       "signingIdentity": "-"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGNDg5RjRDOURBOTUxRjMKUldUelVhbWRUSjlJUDdnTFU5dFMzR1dDZEFKYmVmaFlJWENhbGJ0MGxsajNENnNKMEFhR2dTVW8K",
+      "endpoints": [
+        "https://github.com/leonardogavaudan/utter/releases/latest/download/latest.json"
+      ]
     }
   }
 }

@@ -167,6 +167,16 @@ pub fn get_shortcut_error(state: State<'_, AppState>) -> Option<String> {
 }
 
 #[tauri::command]
+pub fn get_pending_update(state: State<'_, AppState>) -> Option<String> {
+    state.pending_update().clone()
+}
+
+#[tauri::command]
+pub fn restart_to_update(app: AppHandle) {
+    app.restart();
+}
+
+#[tauri::command]
 pub fn get_phase(state: State<'_, AppState>) -> Phase {
     state.session().phase()
 }

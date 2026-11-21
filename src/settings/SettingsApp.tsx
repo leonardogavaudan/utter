@@ -11,6 +11,7 @@ import { Field, Section, Segmented, Switch } from "./Layout";
 import { ProviderFields } from "./ProviderFields";
 import { SetupChecklist } from "./SetupChecklist";
 import { Keys, ShortcutRecorder } from "./ShortcutRecorder";
+import { UpdateBanner } from "./UpdateBanner";
 import { useSettings } from "./useSettings";
 
 const PHASE_LABELS: Record<Phase, string> = {
@@ -78,6 +79,7 @@ export function SettingsApp() {
       </header>
 
       <main>
+        <UpdateBanner />
         <SetupChecklist settings={saved} />
 
         <Section title="Shortcut">

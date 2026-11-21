@@ -28,6 +28,8 @@ export const api = {
   requestMicrophone: () => invoke<MicrophoneStatus>("request_microphone"),
   openPermissionSettings: (permission: PermissionKind) => invoke<void>("open_permission_settings", { permission }),
   getShortcutError: () => invoke<string | null>("get_shortcut_error"),
+  getPendingUpdate: () => invoke<string | null>("get_pending_update"),
+  restartToUpdate: () => invoke<void>("restart_to_update"),
   getPhase: () => invoke<Phase>("get_phase"),
   getLastDictation: () => invoke<Dictation | null>("get_last_dictation"),
 };
@@ -39,6 +41,8 @@ export const events = {
     listen<Notice>("dictation-notice", (event) => handler(event.payload)),
   onDictation: (handler: (dictation: Dictation) => void): Promise<UnlistenFn> =>
     listen<Dictation>("dictation-finished", (event) => handler(event.payload)),
+  onUpdateReady: (handler: (version: string) => void): Promise<UnlistenFn> =>
+    listen<string>("update-ready", (event) => handler(event.payload)),
 };
 
 export function errorMessage(error: unknown): string {

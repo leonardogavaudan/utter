@@ -8,6 +8,7 @@ use crate::{overlay, tray};
 pub const PHASE_EVENT: &str = "dictation-phase";
 pub const NOTICE_EVENT: &str = "dictation-notice";
 pub const FINISHED_EVENT: &str = "dictation-finished";
+pub const UPDATE_READY_EVENT: &str = "update-ready";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -58,6 +59,10 @@ pub fn show_notice(app: &AppHandle, notice: Notice) {
     overlay::show(app);
     emit(app, NOTICE_EVENT, notice);
     overlay::hide_later(app);
+}
+
+pub fn update_ready(app: &AppHandle, version: &str) {
+    emit(app, UPDATE_READY_EVENT, version.to_owned());
 }
 
 pub fn dictated(app: &AppHandle, dictation: &Dictation) {
