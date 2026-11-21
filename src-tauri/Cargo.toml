@@ -1,0 +1,35 @@
+[package]
+name = "utter"
+description = "Context-aware voice typing that uses your own speech and language model API keys"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+keyring = "4.2"
+log.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.12", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2.4"
+tauri-plugin-log = "2.10"
+tauri-plugin-opener = "2.7"
+tauri-plugin-single-instance = "2.5"
+thiserror.workspace = true
+tokio.workspace = true
+ts-rs = "12"
+utter-core.workspace = true
+utter-os.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "NSNotification", "NSOperation", "NSString"] }
+
+[lints]
+workspace = true

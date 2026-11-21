@@ -1,0 +1,33 @@
+{
+  "name": "utter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:web": "vite",
+    "build": "tauri build",
+    "build:web": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check",
+    "format": "biome check --write && cargo fmt --all",
+    "bindings": "cargo test --workspace export_bindings",
+    "icons": "tauri icon assets/app-icon.svg && tauri icon assets/tray-idle.svg --png 44 -o src-tauri/icons/tray/idle && tauri icon assets/tray-recording.svg --png 44 -o src-tauri/icons/tray/recording && tauri icon assets/tray-processing.svg --png 44 -o src-tauri/icons/tray/processing && rm -rf src-tauri/icons/android src-tauri/icons/ios",
+    "check": "cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && tsc --noEmit && biome check"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.5",
+    "@tauri-apps/plugin-opener": "^2.7.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@tauri-apps/cli": "^2.12.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

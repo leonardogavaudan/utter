@@ -1,0 +1,31 @@
+[package]
+name = "utter-os"
+description = "Operating-system integration for Utter: microphone capture, focused-text context, and pasting"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+arboard = "3.7"
+cpal = "0.18"
+enigo = "0.6"
+log.workspace = true
+thiserror.workspace = true
+utter-core.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+accessibility-sys = "0.2"
+core-foundation = "0.10"
+core-foundation-sys = "0.8"
+block2 = "0.6"
+objc2 = "0.6"
+objc2-av-foundation = { version = "0.3", default-features = false, features = ["std", "block2", "AVCaptureDevice", "AVMediaFormat"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSRunningApplication", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
