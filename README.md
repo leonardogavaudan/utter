@@ -6,6 +6,12 @@ It has no server and no account. You bring your own API keys, and requests go st
 
 macOS is the first platform. The architecture is cross-platform (Tauri and Rust), and Windows and Linux are planned.
 
+## Install
+
+Download the latest `.dmg` from [Releases](https://github.com/leonardogavaudan/utter/releases/latest), open it, and drag Utter into Applications. It is signed and notarized by Apple, runs on Apple silicon and Intel Macs with macOS 13 or later, and updates itself.
+
+On first launch, Utter's setup checklist walks you through allowing Accessibility and the microphone and adding a speech-to-text API key.
+
 ## How it works
 
 ```mermaid
@@ -112,7 +118,6 @@ Not done yet:
 - A live microphone level in the overlay, and choosing a microphone.
 - Keeping the last recording so a failed transcription can be retried.
 - Restoring images and rich text on the clipboard. Only plain text is restored today.
-- Signing and notarization for distribution.
 
 ## License
 
