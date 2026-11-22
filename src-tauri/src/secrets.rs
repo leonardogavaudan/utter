@@ -1,11 +1,23 @@
 use std::collections::HashMap;
+use std::env;
 use std::sync::{Mutex, PoisonError};
 
+use serde::Serialize;
+use ts_rs::TS;
 use utter_core::pipeline::ApiKeys;
 use utter_core::providers::{ProviderId, Role};
 use utter_core::settings::Settings;
 
 use crate::error::AppResult;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+#[ts(export)]
+pub enum ApiKeySource {
+    Environment { variable: String },
+    Keychain,
+    Missing,
+}
 
 pub struct Secrets {
     service: String,
@@ -21,6 +33,22 @@ impl Secrets {
     }
 
     pub fn get(&self, provider: ProviderId, role: Role) -> Option<String> {
+        find_environment_key(provider)
+            .map(|(_, key)| key)
+            .or_else(|| self.find_keychain_key(provider, role))
+    }
+
+    pub fn source(&self, provider: ProviderId, role: Role) -> ApiKeySource {
+        if let Some((variable, _)) = find_environment_key(provider) {
+            return ApiKeySource::Environment { variable };
+        }
+        match self.find_keychain_key(provider, role) {
+            Some(_) => ApiKeySource::Keychain,
+            None => ApiKeySource::Missing,
+        }
+    }
+
+    fn find_keychain_key(&self, provider: ProviderId, role: Role) -> Option<String> {
         let slot = provider.api_key_slot(role);
         let mut slot_to_key = self
             .slot_to_key
@@ -82,4 +110,10 @@ impl Secrets {
             .unwrap_or_else(PoisonError::into_inner)
             .insert(slot, key);
     }
+}
+
+fn find_environment_key(provider: ProviderId) -> Option<(String, String)> {
+    let variable = provider.api_key_env_var()?;
+    let key = env::var(&variable).ok()?.trim().to_owned();
+    (!key.is_empty()).then_some((variable, key))
 }

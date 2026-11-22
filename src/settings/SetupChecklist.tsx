@@ -11,7 +11,9 @@ export function SetupChecklist({ settings }: { settings: Settings }) {
 
   const refresh = useCallback(() => {
     void api.getPermissions().then(setPermissions);
-    void api.hasApiKey(settings.transcription.provider, "transcription").then(setHasTranscriptionKey);
+    void api
+      .getApiKeySource(settings.transcription.provider, "transcription")
+      .then((source) => setHasTranscriptionKey(source.kind !== "missing"));
   }, [settings.transcription.provider]);
 
   useEffect(() => {

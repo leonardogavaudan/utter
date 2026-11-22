@@ -42,7 +42,7 @@ fn main() {
             commands::save_settings,
             commands::list_providers,
             commands::list_models,
-            commands::has_api_key,
+            commands::get_api_key_source,
             commands::set_api_key,
             commands::delete_api_key,
             commands::list_microphones,

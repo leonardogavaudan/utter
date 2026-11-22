@@ -10,6 +10,7 @@ use utter_os::permissions::{self, MicrophoneAccess, Permission};
 
 use crate::error::{AppError, AppResult};
 use crate::events::Phase;
+use crate::secrets::ApiKeySource;
 use crate::shortcut;
 use crate::state::AppState;
 
@@ -100,8 +101,12 @@ pub async fn list_models(
 }
 
 #[tauri::command]
-pub fn has_api_key(state: State<'_, AppState>, provider: ProviderId, role: Role) -> bool {
-    state.secrets.get(provider, role).is_some()
+pub fn get_api_key_source(
+    state: State<'_, AppState>,
+    provider: ProviderId,
+    role: Role,
+) -> ApiKeySource {
+    state.secrets.source(provider, role)
 }
 
 #[tauri::command]

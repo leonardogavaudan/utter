@@ -1,19 +1,20 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
 import { API_KEYS_CHANGED, api, errorMessage } from "../api";
+import type { ApiKeySource } from "../bindings/ApiKeySource";
 import type { ProviderPreset } from "../bindings/ProviderPreset";
 import type { Role } from "../bindings/Role";
 import { Field } from "./Layout";
 
 export function ApiKeyField({ preset, providerRole }: { preset: ProviderPreset; providerRole: Role }) {
-  const [saved, setSaved] = useState<boolean | null>(null);
+  const [source, setSource] = useState<ApiKeySource | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     api
-      .hasApiKey(preset.id, providerRole)
-      .then(setSaved)
+      .getApiKeySource(preset.id, providerRole)
+      .then(setSource)
       .catch((reason: unknown) => setError(errorMessage(reason)));
   }, [preset.id, providerRole]);
 
@@ -38,22 +39,36 @@ export function ApiKeyField({ preset, providerRole }: { preset: ProviderPreset; 
 
   const save = () => run(() => api.setApiKey(preset.id, providerRole, draft));
   const remove = () => run(() => api.deleteApiKey(preset.id, providerRole));
+  const label = preset.requiresApiKey ? "API key" : "API key (optional)";
+  const keyLink = preset.apiKeyUrl && (
+    <button type="button" className="link" onClick={() => void openUrl(preset.apiKeyUrl ?? "")}>
+      Get a {preset.label} key
+    </button>
+  );
 
+  if (source?.kind === "environment") {
+    return (
+      <Field
+        label={label}
+        hint={`Utter reads this key from the ${source.variable} environment variable, so it never touches your Keychain.`}
+      >
+        {(control) => <input {...control} type="text" readOnly value={`From ${source.variable}`} />}
+      </Field>
+    );
+  }
+
+  const saved = source?.kind === "keychain";
   const hint = error ? (
     <span className="is-error">{error}</span>
   ) : (
     <>
       {saved ? "Stored in your Keychain. " : "Kept in your Keychain, never in the settings file. "}
-      {preset.apiKeyUrl && (
-        <button type="button" className="link" onClick={() => void openUrl(preset.apiKeyUrl ?? "")}>
-          Get a {preset.label} key
-        </button>
-      )}
+      {keyLink}
     </>
   );
 
   return (
-    <Field label={preset.requiresApiKey ? "API key" : "API key (optional)"} hint={hint}>
+    <Field label={label} hint={hint}>
       {(control) => (
         <span className="inline">
           <input

@@ -43,7 +43,7 @@ Press Escape while recording to cancel. Recordings stop on their own after five 
 
 - **No server.** Audio goes only to your speech-to-text provider. The transcript and context go only to your cleanup provider.
 - **Text, not screenshots.** Context comes from the Accessibility API. Password fields are never read. You choose how much context to send: everything visible in the window (up to 2,000 characters, nearest your cursor first) plus the text around the cursor; only the text around the cursor (400 characters before, 200 after, and any selection); only the app and window title; or nothing. Only text that is on screen is read: apps such as chat clients drop messages you have scrolled past, so those are never sent.
-- **Nothing kept on disk** except `settings.json`. API keys are stored in the macOS Keychain. The last dictation is kept in memory only, so you can see it in Settings. Logs record sizes and timings, never what you said.
+- **Nothing kept on disk** except `settings.json`. API keys are stored in the macOS Keychain, or read from environment variables (see Providers). The last dictation is kept in memory only, so you can see it in Settings. Logs record sizes and timings, never what you said.
 - **Clipboard managers skip Utter's text.** The pasted text is marked as transient, so tools like Maccy or Raycast do not save it to their history.
 
 ## Providers
@@ -60,6 +60,8 @@ Press Escape while recording to cancel. Recordings stop on their own after five 
 | Custom | yes | yes | Any OpenAI-compatible server |
 
 Speech-to-text and cleanup can use different providers. A provider's key is shared between the two, except for Custom endpoints, which each keep their own.
+
+If a hosted provider's key is in Utter's environment under the usual name (`GROQ_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`), Utter uses it instead of the Keychain, and Settings shows which variable it came from. Apps opened from the Dock get their environment from launchd, so set it there, for example with `launchctl setenv GROQ_API_KEY ...`.
 
 Your vocabulary list reaches each speech-to-text model in the form it understands: as the prompt for OpenAI-compatible models, and as keyterms for ElevenLabs (up to 100 terms of at most 5 words each; ElevenLabs charges 20% more for keyterms).
 

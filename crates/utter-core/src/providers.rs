@@ -177,6 +177,12 @@ impl ProviderId {
         }
     }
 
+    pub fn api_key_env_var(self) -> Option<String> {
+        self.preset()
+            .requires_api_key
+            .then(|| format!("{}_API_KEY", self.as_str().to_uppercase()))
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             ProviderId::Groq => "groq",
@@ -344,6 +350,24 @@ mod tests {
         .await
         .expect("lists");
         assert_eq!(models, vec!["scribe_v3", "scribe_v2"]);
+    }
+
+    #[test]
+    fn hosted_providers_read_the_conventional_environment_variable() {
+        assert_eq!(
+            ProviderId::Groq.api_key_env_var().as_deref(),
+            Some("GROQ_API_KEY")
+        );
+        assert_eq!(
+            ProviderId::ElevenLabs.api_key_env_var().as_deref(),
+            Some("ELEVENLABS_API_KEY")
+        );
+        assert_eq!(
+            ProviderId::OpenAi.api_key_env_var().as_deref(),
+            Some("OPENAI_API_KEY")
+        );
+        assert_eq!(ProviderId::Ollama.api_key_env_var(), None);
+        assert_eq!(ProviderId::Custom.api_key_env_var(), None);
     }
 
     #[test]

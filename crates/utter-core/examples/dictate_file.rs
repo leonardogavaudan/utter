@@ -29,7 +29,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .collect();
     }
     let api_key_for = |provider: ProviderId| {
-        env::var(format!("{}_API_KEY", provider.as_str().to_uppercase())).ok()
+        provider
+            .api_key_env_var()
+            .and_then(|name| env::var(name).ok())
     };
     let keys = ApiKeys {
         transcription: api_key_for(settings.transcription.provider),
