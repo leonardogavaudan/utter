@@ -62,7 +62,11 @@ fn main() {
                 log::error!("using default settings: {error}");
                 Settings::default()
             });
-            let state = AppState::new(settings.clone(), settings_path)?;
+            let state = AppState::new(
+                settings.clone(),
+                settings_path,
+                app.config().identifier.clone(),
+            )?;
             let mut needs_setup = !state.secrets.has_keys_for(&settings)
                 || !utter_os::permissions::accessibility_granted();
             app.manage(state);

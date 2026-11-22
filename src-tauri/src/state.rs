@@ -10,7 +10,6 @@ use crate::error::AppResult;
 use crate::secrets::Secrets;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-const KEYCHAIN_SERVICE: &str = "dev.utter.desktop";
 
 pub struct AppState {
     pub settings: RwLock<Settings>,
@@ -24,7 +23,11 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(settings: Settings, settings_path: PathBuf) -> AppResult<AppState> {
+    pub fn new(
+        settings: Settings,
+        settings_path: PathBuf,
+        keychain_service: String,
+    ) -> AppResult<AppState> {
         let http = reqwest::Client::builder()
             .connect_timeout(CONNECT_TIMEOUT)
             .build()
@@ -33,7 +36,7 @@ impl AppState {
             settings: RwLock::new(settings),
             settings_path,
             http,
-            secrets: Secrets::new(KEYCHAIN_SERVICE),
+            secrets: Secrets::new(keychain_service),
             session: Mutex::new(Session::Idle),
             last_dictation: Mutex::new(None),
             shortcut_error: Mutex::new(None),

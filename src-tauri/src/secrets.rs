@@ -8,12 +8,12 @@ use utter_core::settings::Settings;
 use crate::error::AppResult;
 
 pub struct Secrets {
-    service: &'static str,
+    service: String,
     slot_to_key: Mutex<HashMap<String, Option<String>>>,
 }
 
 impl Secrets {
-    pub fn new(service: &'static str) -> Secrets {
+    pub fn new(service: String) -> Secrets {
         Secrets {
             service,
             slot_to_key: Mutex::new(HashMap::new()),
@@ -29,29 +29,30 @@ impl Secrets {
         if let Some(key) = slot_to_key.get(&slot) {
             return key.clone();
         }
-        let key =
-            match keyring::Entry::new(self.service, &slot).and_then(|entry| entry.get_password()) {
-                Ok(key) => Some(key),
-                Err(keyring::Error::NoEntry) => None,
-                Err(error) => {
-                    log::warn!("could not read the {slot} API key from the keychain: {error}");
-                    return None;
-                }
-            };
+        let key = match keyring::Entry::new(&self.service, &slot)
+            .and_then(|entry| entry.get_password())
+        {
+            Ok(key) => Some(key),
+            Err(keyring::Error::NoEntry) => None,
+            Err(error) => {
+                log::warn!("could not read the {slot} API key from the keychain: {error}");
+                return None;
+            }
+        };
         slot_to_key.insert(slot, key.clone());
         key
     }
 
     pub fn set(&self, provider: ProviderId, role: Role, key: &str) -> AppResult<()> {
         let slot = provider.api_key_slot(role);
-        keyring::Entry::new(self.service, &slot)?.set_password(key)?;
+        keyring::Entry::new(&self.service, &slot)?.set_password(key)?;
         self.remember(slot, Some(key.to_owned()));
         Ok(())
     }
 
     pub fn delete(&self, provider: ProviderId, role: Role) -> AppResult<()> {
         let slot = provider.api_key_slot(role);
-        match keyring::Entry::new(self.service, &slot)?.delete_credential() {
+        match keyring::Entry::new(&self.service, &slot)?.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => {}
             Err(error) => return Err(error.into()),
         }

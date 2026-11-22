@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "dev": "tauri dev",
+    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "build:dev": "tauri build --debug --bundles app --config src-tauri/tauri.dev.conf.json",
     "dev:web": "vite",
     "build": "tauri build",
     "build:web": "tsc --noEmit && vite build",

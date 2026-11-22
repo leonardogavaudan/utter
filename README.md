@@ -74,9 +74,11 @@ bun run build    # release .app and .dmg in target/release/bundle
 `bun run dev` starts the binary from your terminal, so macOS grants microphone and Accessibility access to the terminal app instead of Utter. To test permissions the way users get them, build the bundle and open it:
 
 ```sh
-bunx tauri build --debug --bundles app
-open target/debug/bundle/macos/Utter.app
+bun run build:dev
+open "target/debug/bundle/macos/Utter Dev.app"
 ```
+
+Local builds are called Utter Dev and use their own app ID, so their permissions, settings, and saved API keys stay separate from an installed copy of Utter.
 
 macOS ties Accessibility, microphone, and Keychain access to the app's signature. Ad-hoc signatures change on every build, so each rebuild would need the permissions granted again. Create a self-signed signing identity once and build with it, and the grants survive rebuilds:
 
@@ -88,7 +90,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 36
 security import identity.p12 -k ~/Library/Keychains/login.keychain-db -P temporary -T /usr/bin/codesign
 rm key.pem cert.pem identity.p12
 
-APPLE_SIGNING_IDENTITY="Utter Local Signing" bunx tauri build --debug --bundles app
+APPLE_SIGNING_IDENTITY="Utter Local Signing" bun run build:dev
 ```
 
 To run the whole pipeline against Groq on a recording, without the app:
