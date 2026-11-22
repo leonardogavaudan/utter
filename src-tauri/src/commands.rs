@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 use ts_rs::TS;
+use utter_core::microphone::Microphone;
 use utter_core::pipeline::Dictation;
 use utter_core::providers::{self, PRESETS, ProviderId, ProviderPreset, Role};
 use utter_core::settings::Settings;
@@ -124,6 +125,13 @@ pub fn delete_api_key(
     role: Role,
 ) -> AppResult<()> {
     state.secrets.delete(provider, role)
+}
+
+#[tauri::command]
+pub async fn list_microphones() -> AppResult<Vec<Microphone>> {
+    tauri::async_runtime::spawn_blocking(utter_os::microphones::list_microphones)
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))
 }
 
 #[tauri::command]

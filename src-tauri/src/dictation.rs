@@ -50,8 +50,12 @@ pub fn start(app: &AppHandle) {
         return;
     }
     let target_pid = utter_os::context::focused_app_pid();
-    let context = capture_context_in_background(state.settings().context);
-    match ActiveRecording::start() {
+    let (context_mode, microphone) = {
+        let settings = state.settings();
+        (settings.context, settings.microphone.clone())
+    };
+    let context = capture_context_in_background(context_mode);
+    match ActiveRecording::start(microphone) {
         Ok(audio) => {
             let id = NEXT_RECORDING_ID.fetch_add(1, Ordering::Relaxed);
             *session = Session::Recording(Recording {

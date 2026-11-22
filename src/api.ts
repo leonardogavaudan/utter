@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Dictation } from "./bindings/Dictation";
+import type { Microphone } from "./bindings/Microphone";
 import type { MicrophoneStatus } from "./bindings/MicrophoneStatus";
 import type { Notice } from "./bindings/Notice";
 import type { PermissionKind } from "./bindings/PermissionKind";
@@ -23,6 +24,7 @@ export const api = {
   setApiKey: (provider: ProviderId, role: Role, apiKey: string) =>
     invoke<void>("set_api_key", { provider, role, apiKey }),
   deleteApiKey: (provider: ProviderId, role: Role) => invoke<void>("delete_api_key", { provider, role }),
+  listMicrophones: () => invoke<Microphone[]>("list_microphones"),
   getPermissions: () => invoke<Permissions>("get_permissions"),
   requestAccessibility: () => invoke<boolean>("request_accessibility"),
   requestMicrophone: () => invoke<MicrophoneStatus>("request_microphone"),

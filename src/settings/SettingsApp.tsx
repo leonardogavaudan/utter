@@ -8,6 +8,7 @@ import type { TriggerMode } from "../bindings/TriggerMode";
 import { useTauriEvent } from "../useTauriEvent";
 import { LastDictation } from "./LastDictation";
 import { Field, Section, Segmented, Switch } from "./Layout";
+import { MicrophoneField } from "./MicrophoneField";
 import { ProviderFields } from "./ProviderFields";
 import { SetupChecklist } from "./SetupChecklist";
 import { Keys, ShortcutRecorder } from "./ShortcutRecorder";
@@ -82,7 +83,7 @@ export function SettingsApp() {
         <UpdateBanner />
         <SetupChecklist settings={saved} />
 
-        <Section title="Shortcut">
+        <Section title="Recording">
           <Field
             label="Dictation shortcut"
             hint={shortcutError && <span className="is-error">{shortcutError}. Another app may already use it.</span>}
@@ -108,6 +109,10 @@ export function SettingsApp() {
               />
             )}
           </Field>
+          <MicrophoneField
+            value={draft.microphone}
+            onChange={(microphone) => update((settings) => ({ ...settings, microphone }))}
+          />
         </Section>
 
         <Section title="Speech to text" description="Your recording is sent here when you stop talking.">

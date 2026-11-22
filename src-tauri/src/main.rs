@@ -45,6 +45,7 @@ fn main() {
             commands::has_api_key,
             commands::set_api_key,
             commands::delete_api_key,
+            commands::list_microphones,
             commands::get_permissions,
             commands::request_accessibility,
             commands::request_microphone,

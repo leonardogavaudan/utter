@@ -2,9 +2,12 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample, StreamConfig};
 use utter_core::audio::Recording;
+use utter_core::microphone::{Microphone, choose_microphone};
+
+use crate::microphones::input_devices;
 
 const INITIAL_CAPACITY_SECONDS: usize = 30;
 
@@ -24,12 +27,14 @@ pub struct ActiveRecording {
 }
 
 impl ActiveRecording {
-    pub fn start() -> Result<ActiveRecording, RecorderError> {
+    pub fn start(preferred_microphone: Option<String>) -> Result<ActiveRecording, RecorderError> {
         let (stop, stop_requested) = mpsc::channel();
         let (ready, started) = mpsc::sync_channel(1);
         let worker = thread::Builder::new()
             .name("utter-recorder".to_owned())
-            .spawn(move || record_until_stopped(&ready, &stop_requested))
+            .spawn(move || {
+                record_until_stopped(preferred_microphone.as_deref(), &ready, &stop_requested)
+            })
             .map_err(|error| RecorderError::Device(error.to_string()))?;
         match started.recv() {
             Ok(Ok(())) => Ok(ActiveRecording { stop, worker }),
@@ -49,10 +54,11 @@ impl ActiveRecording {
 }
 
 fn record_until_stopped(
+    preferred_microphone: Option<&str>,
     ready: &mpsc::SyncSender<Result<(), RecorderError>>,
     stop_requested: &mpsc::Receiver<()>,
 ) -> Recording {
-    let (stream, samples, config) = match open_stream() {
+    let (stream, samples, config) = match open_stream(preferred_microphone) {
         Ok(opened) => opened,
         Err(error) => {
             let _ = ready.send(Err(error));
@@ -71,10 +77,10 @@ fn record_until_stopped(
 
 type SharedSamples = Arc<Mutex<Vec<f32>>>;
 
-fn open_stream() -> Result<(cpal::Stream, SharedSamples, StreamConfig), RecorderError> {
-    let device = cpal::default_host()
-        .default_input_device()
-        .ok_or(RecorderError::NoMicrophone)?;
+fn open_stream(
+    preferred_microphone: Option<&str>,
+) -> Result<(cpal::Stream, SharedSamples, StreamConfig), RecorderError> {
+    let device = chosen_device(preferred_microphone)?;
     let supported = device
         .default_input_config()
         .map_err(|error| RecorderError::Device(error.to_string()))?;
@@ -126,4 +132,20 @@ where
             None,
         )
         .map_err(|error| RecorderError::Device(error.to_string()))
+}
+
+fn chosen_device(preferred_microphone: Option<&str>) -> Result<cpal::Device, RecorderError> {
+    let devices = input_devices();
+    let microphones: Vec<Microphone> = devices
+        .iter()
+        .map(|input| input.microphone.clone())
+        .collect();
+    let chosen =
+        choose_microphone(&microphones, preferred_microphone).ok_or(RecorderError::NoMicrophone)?;
+    log::info!("recording from {} ({:?})", chosen.name, chosen.connection);
+    devices
+        .into_iter()
+        .find(|input| input.microphone.id == chosen.id)
+        .map(|input| input.device)
+        .ok_or(RecorderError::NoMicrophone)
 }

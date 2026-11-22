@@ -4,4 +4,4 @@ import type { ContextMode } from "./ContextMode";
 import type { TranscriptionSettings } from "./TranscriptionSettings";
 import type { TriggerMode } from "./TriggerMode";
 
-export type Settings = { shortcut: string, trigger: TriggerMode, context: ContextMode, transcription: TranscriptionSettings, cleanup: CleanupSettings, vocabulary: Array<string>, };
+export type Settings = { shortcut: string, trigger: TriggerMode, context: ContextMode, microphone: string | null, transcription: TranscriptionSettings, cleanup: CleanupSettings, vocabulary: Array<string>, };
