@@ -56,9 +56,12 @@ Press Escape while recording to cancel. Recordings stop on their own after five 
 | Anthropic | no | yes | Messages API |
 | Ollama | no | yes | OpenAI-compatible, local |
 | LM Studio | no | yes | OpenAI-compatible, local |
+| ElevenLabs | yes (Scribe) | no | ElevenLabs speech-to-text API |
 | Custom | yes | yes | Any OpenAI-compatible server |
 
 Speech-to-text and cleanup can use different providers. A provider's key is shared between the two, except for Custom endpoints, which each keep their own.
+
+Your vocabulary list reaches each speech-to-text model in the form it understands: as the prompt for OpenAI-compatible models, and as keyterms for ElevenLabs (up to 100 terms of at most 5 words each; ElevenLabs charges 20% more for keyterms).
 
 ## Development
 
@@ -93,7 +96,7 @@ rm key.pem cert.pem identity.p12
 APPLE_SIGNING_IDENTITY="Utter Local Signing" bun run build:dev
 ```
 
-To run the whole pipeline against Groq on a recording, without the app:
+To run the whole pipeline on a recording, without the app (Groq by default; `UTTER_TRANSCRIPTION_PROVIDER=elevenlabs` with `ELEVENLABS_API_KEY` switches speech-to-text, and `UTTER_VOCABULARY` takes comma-separated terms):
 
 ```sh
 GROQ_API_KEY=... cargo run -p utter-core --example dictate_file -- recording.wav "text before the cursor"

@@ -45,6 +45,7 @@ pub async fn run(
     let raw_transcript = transcribe(
         client,
         TranscriptionRequest {
+            api: settings.transcription.provider.preset().api,
             base_url: &settings.transcription.base_url,
             api_key: transcription_key,
             model: &settings.transcription.model,

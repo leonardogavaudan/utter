@@ -30,15 +30,21 @@ pub struct TranscriptionSettings {
     pub language: Option<String>,
 }
 
-impl Default for TranscriptionSettings {
-    fn default() -> Self {
-        let preset = ProviderId::Groq.preset();
+impl TranscriptionSettings {
+    pub fn for_provider(provider: ProviderId) -> TranscriptionSettings {
+        let preset = provider.preset();
         TranscriptionSettings {
-            provider: preset.id,
+            provider,
             base_url: preset.base_url.to_owned(),
             model: preset.transcription_model.unwrap_or_default().to_owned(),
             language: None,
         }
+    }
+}
+
+impl Default for TranscriptionSettings {
+    fn default() -> Self {
+        TranscriptionSettings::for_provider(ProviderId::Groq)
     }
 }
 
@@ -172,6 +178,12 @@ impl Settings {
             &self.transcription.model,
         )?;
         if self.cleanup.enabled {
+            if !self.cleanup.provider.supports(Role::Cleanup) {
+                return Err(Error::Settings(format!(
+                    "{} does not offer cleanup",
+                    self.cleanup.provider.preset().label
+                )));
+            }
             validate_endpoint("cleanup", &self.cleanup.base_url, &self.cleanup.model)?;
         }
         Ok(())
@@ -265,6 +277,14 @@ mod tests {
         let mut settings = Settings::default();
         settings.transcription.provider = ProviderId::Anthropic;
         assert!(settings.validate().is_err());
+        let mut cleanup_without_chat = Settings::default();
+        cleanup_without_chat.cleanup.provider = ProviderId::ElevenLabs;
+        assert!(cleanup_without_chat.validate().is_err());
+        let elevenlabs = Settings {
+            transcription: TranscriptionSettings::for_provider(ProviderId::ElevenLabs),
+            ..Settings::default()
+        };
+        elevenlabs.validate().expect("ElevenLabs transcribes");
 
         let mut settings = Settings::default();
         settings.cleanup.base_url = "api.groq.com".into();

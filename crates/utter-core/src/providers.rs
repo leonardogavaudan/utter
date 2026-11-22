@@ -17,6 +17,7 @@ pub enum ProviderId {
     Ollama,
     LmStudio,
     Custom,
+    ElevenLabs,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -25,6 +26,7 @@ pub enum ProviderId {
 pub enum ApiFlavor {
     OpenAiCompatible,
     Anthropic,
+    ElevenLabs,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -43,6 +45,8 @@ pub struct ProviderPreset {
     pub label: &'static str,
     pub api: ApiFlavor,
     pub base_url: &'static str,
+    pub transcribes: bool,
+    pub cleans_up: bool,
     pub transcription_model: Option<&'static str>,
     pub cleanup_model: Option<&'static str>,
     pub requires_api_key: bool,
@@ -55,6 +59,8 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "Groq",
         api: ApiFlavor::OpenAiCompatible,
         base_url: "https://api.groq.com/openai/v1",
+        transcribes: true,
+        cleans_up: true,
         transcription_model: Some("whisper-large-v3"),
         cleanup_model: Some("openai/gpt-oss-20b"),
         requires_api_key: true,
@@ -65,6 +71,8 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "OpenAI",
         api: ApiFlavor::OpenAiCompatible,
         base_url: "https://api.openai.com/v1",
+        transcribes: true,
+        cleans_up: true,
         transcription_model: Some("gpt-4o-transcribe"),
         cleanup_model: Some("gpt-5-mini"),
         requires_api_key: true,
@@ -75,6 +83,8 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "OpenRouter",
         api: ApiFlavor::OpenAiCompatible,
         base_url: "https://openrouter.ai/api/v1",
+        transcribes: false,
+        cleans_up: true,
         transcription_model: None,
         cleanup_model: Some("openai/gpt-oss-20b"),
         requires_api_key: true,
@@ -85,6 +95,8 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "Anthropic",
         api: ApiFlavor::Anthropic,
         base_url: "https://api.anthropic.com/v1",
+        transcribes: false,
+        cleans_up: true,
         transcription_model: None,
         cleanup_model: Some("claude-opus-5-5"),
         requires_api_key: true,
@@ -95,6 +107,8 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "Ollama (local)",
         api: ApiFlavor::OpenAiCompatible,
         base_url: "http://localhost:11434/v1",
+        transcribes: false,
+        cleans_up: true,
         transcription_model: None,
         cleanup_model: Some("llama3.2"),
         requires_api_key: false,
@@ -105,6 +119,8 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "LM Studio (local)",
         api: ApiFlavor::OpenAiCompatible,
         base_url: "http://localhost:1234/v1",
+        transcribes: false,
+        cleans_up: true,
         transcription_model: None,
         cleanup_model: None,
         requires_api_key: false,
@@ -115,12 +131,28 @@ pub const PRESETS: &[ProviderPreset] = &[
         label: "Custom (OpenAI-compatible)",
         api: ApiFlavor::OpenAiCompatible,
         base_url: "",
+        transcribes: true,
+        cleans_up: true,
         transcription_model: None,
         cleanup_model: None,
         requires_api_key: false,
         api_key_url: None,
     },
+    ProviderPreset {
+        id: ProviderId::ElevenLabs,
+        label: "ElevenLabs",
+        api: ApiFlavor::ElevenLabs,
+        base_url: "https://api.elevenlabs.io/v1",
+        transcribes: true,
+        cleans_up: false,
+        transcription_model: Some("scribe_v3"),
+        cleanup_model: None,
+        requires_api_key: true,
+        api_key_url: Some("https://elevenlabs.io/app/developers/api-keys"),
+    },
 ];
+
+const ELEVENLABS_TRANSCRIPTION_MODELS: [&str; 2] = ["scribe_v3", "scribe_v2"];
 
 impl ProviderId {
     pub fn preset(self) -> &'static ProviderPreset {
@@ -132,10 +164,8 @@ impl ProviderId {
 
     pub fn supports(self, role: Role) -> bool {
         match role {
-            Role::Transcription => {
-                self == ProviderId::Custom || self.preset().transcription_model.is_some()
-            }
-            Role::Cleanup => true,
+            Role::Transcription => self.preset().transcribes,
+            Role::Cleanup => self.preset().cleans_up,
         }
     }
 
@@ -156,6 +186,7 @@ impl ProviderId {
             ProviderId::Ollama => "ollama",
             ProviderId::LmStudio => "lmstudio",
             ProviderId::Custom => "custom",
+            ProviderId::ElevenLabs => "elevenlabs",
         }
     }
 }
@@ -178,6 +209,12 @@ pub async fn list_models(
     base_url: &str,
     api_key: Option<&str>,
 ) -> Result<Vec<String>> {
+    if api == ApiFlavor::ElevenLabs {
+        return Ok(ELEVENLABS_TRANSCRIPTION_MODELS
+            .iter()
+            .map(|model| (*model).to_owned())
+            .collect());
+    }
     let request = authorize(client.get(endpoint(base_url, "models")), api, api_key);
     let list: ModelList = parse_json(request.timeout(MODELS_TIMEOUT).send().await?).await?;
     let mut models: Vec<String> = list.data.into_iter().map(|model| model.id).collect();
@@ -237,7 +274,7 @@ mod tests {
         assert_eq!(anthropic, vec!["claude-opus-5-5"]);
     }
 
-    const ALL: [ProviderId; 7] = [
+    const ALL: [ProviderId; 8] = [
         ProviderId::Groq,
         ProviderId::OpenAi,
         ProviderId::OpenRouter,
@@ -245,6 +282,7 @@ mod tests {
         ProviderId::Ollama,
         ProviderId::LmStudio,
         ProviderId::Custom,
+        ProviderId::ElevenLabs,
     ];
 
     #[test]
@@ -264,12 +302,48 @@ mod tests {
     }
 
     #[test]
-    fn only_openai_compatible_providers_transcribe() {
-        for provider in ALL.into_iter().filter(|p| p.supports(Role::Transcription)) {
-            assert_eq!(provider.preset().api, ApiFlavor::OpenAiCompatible);
+    fn each_role_is_offered_only_through_an_api_that_has_it() {
+        for provider in ALL {
+            let api = provider.preset().api;
+            if provider.supports(Role::Transcription) {
+                assert_ne!(api, ApiFlavor::Anthropic, "{provider:?}");
+            }
+            if provider.supports(Role::Cleanup) {
+                assert_ne!(api, ApiFlavor::ElevenLabs, "{provider:?}");
+            }
         }
         assert!(!ProviderId::Anthropic.supports(Role::Transcription));
-        assert!(ProviderId::Groq.supports(Role::Transcription));
+        assert!(ProviderId::ElevenLabs.supports(Role::Transcription));
+        assert!(!ProviderId::ElevenLabs.supports(Role::Cleanup));
+    }
+
+    #[test]
+    fn providers_with_a_default_model_offer_that_role() {
+        for preset in PRESETS {
+            assert!(
+                preset.transcription_model.is_none() || preset.transcribes,
+                "{:?}",
+                preset.id
+            );
+            assert!(
+                preset.cleanup_model.is_none() || preset.cleans_up,
+                "{:?}",
+                preset.id
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn lists_elevenlabs_models_without_calling_the_api() {
+        let models = list_models(
+            &reqwest::Client::new(),
+            ApiFlavor::ElevenLabs,
+            "http://127.0.0.1:9",
+            Some("key"),
+        )
+        .await
+        .expect("lists");
+        assert_eq!(models, vec!["scribe_v3", "scribe_v2"]);
     }
 
     #[test]

@@ -23,6 +23,8 @@ pub(crate) fn authorize(
             .header("anthropic-version", ANTHROPIC_VERSION)
             .header("x-api-key", key),
         (ApiFlavor::Anthropic, None) => request.header("anthropic-version", ANTHROPIC_VERSION),
+        (ApiFlavor::ElevenLabs, Some(key)) => request.header("xi-api-key", key),
+        (ApiFlavor::ElevenLabs, None) => request,
     }
 }
 
@@ -39,8 +41,10 @@ pub(crate) async fn parse_json<T: DeserializeOwned>(response: reqwest::Response)
 }
 
 #[derive(Deserialize)]
-struct ErrorEnvelope {
-    error: ErrorDetail,
+#[serde(untagged)]
+enum ErrorEnvelope {
+    Error { error: ErrorDetail },
+    Detail { detail: ErrorDetail },
 }
 
 #[derive(Deserialize)]
@@ -48,15 +52,28 @@ struct ErrorEnvelope {
 enum ErrorDetail {
     Object { message: String },
     Text(String),
+    Issues(Vec<ValidationIssue>),
+}
+
+#[derive(Deserialize)]
+struct ValidationIssue {
+    msg: String,
 }
 
 const MAX_ERROR_BODY_CHARS: usize = 300;
 
 fn extract_error_message(body: &str) -> String {
     match serde_json::from_str::<ErrorEnvelope>(body) {
-        Ok(ErrorEnvelope {
-            error: ErrorDetail::Object { message } | ErrorDetail::Text(message),
-        }) => message,
+        Ok(ErrorEnvelope::Error { error: detail } | ErrorEnvelope::Detail { detail }) => {
+            match detail {
+                ErrorDetail::Object { message } | ErrorDetail::Text(message) => message,
+                ErrorDetail::Issues(issues) => issues
+                    .into_iter()
+                    .map(|issue| issue.msg)
+                    .collect::<Vec<_>>()
+                    .join("; "),
+            }
+        }
         Err(_) if body.trim().is_empty() => "empty response body".to_owned(),
         Err(_) => body.chars().take(MAX_ERROR_BODY_CHARS).collect(),
     }
@@ -86,6 +103,22 @@ mod tests {
         assert_eq!(extract_error_message(openai), "Invalid API Key");
         assert_eq!(extract_error_message(anthropic), "invalid x-api-key");
         assert_eq!(extract_error_message(ollama), "model 'llama9' not found");
+    }
+
+    #[test]
+    fn reads_elevenlabs_error_shapes() {
+        let invalid = r#"{"detail":{"type":"validation_error","code":"invalid_parameters","message":"Some keyword contains invalid characters","status":"invalid_keyword","param":"keywords"}}"#;
+        let validation = r#"{"detail":[{"loc":["body","model_id"],"msg":"Field required","type":"missing"},{"loc":["body","file"],"msg":"Invalid file","type":"value_error"}]}"#;
+        let plain = r#"{"detail":"Not authenticated"}"#;
+        assert_eq!(
+            extract_error_message(invalid),
+            "Some keyword contains invalid characters"
+        );
+        assert_eq!(
+            extract_error_message(validation),
+            "Field required; Invalid file"
+        );
+        assert_eq!(extract_error_message(plain), "Not authenticated");
     }
 
     #[test]

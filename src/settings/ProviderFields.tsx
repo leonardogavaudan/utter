@@ -17,7 +17,7 @@ type Check =
 const LOCAL_PROVIDERS: ProviderId[] = ["ollama", "lmstudio", "custom"];
 
 function supportsRole(preset: ProviderPreset, providerRole: Role): boolean {
-  return providerRole === "cleanup" || preset.transcriptionModel !== null || preset.id === "custom";
+  return providerRole === "transcription" ? preset.transcribes : preset.cleansUp;
 }
 
 export function ProviderFields({

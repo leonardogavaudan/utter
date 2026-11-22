@@ -119,6 +119,11 @@ pub async fn clean_up(client: &reqwest::Client, request: CleanupRequest<'_>) -> 
     let text = match request.api {
         ApiFlavor::OpenAiCompatible => chat_completion(client, &request).await?,
         ApiFlavor::Anthropic => anthropic_message(client, &request).await?,
+        ApiFlavor::ElevenLabs => {
+            return Err(Error::Settings(
+                "ElevenLabs does not offer cleanup".to_owned(),
+            ));
+        }
     };
     let text = strip_reasoning(&text).trim().to_owned();
     if text.is_empty() {

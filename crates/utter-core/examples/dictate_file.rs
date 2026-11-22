@@ -4,7 +4,8 @@ use std::error::Error;
 use utter_core::audio::Recording;
 use utter_core::context::TextContext;
 use utter_core::pipeline::{self, ApiKeys};
-use utter_core::settings::Settings;
+use utter_core::providers::ProviderId;
+use utter_core::settings::{Settings, TranscriptionSettings};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -16,14 +17,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
         text_before_cursor: args.next(),
         ..TextContext::default()
     };
-    let key = env::var("GROQ_API_KEY").ok();
+    let mut settings = Settings::default();
+    if let Ok(provider) = env::var("UTTER_TRANSCRIPTION_PROVIDER") {
+        let provider: ProviderId = serde_json::from_value(serde_json::Value::String(provider))?;
+        settings.transcription = TranscriptionSettings::for_provider(provider);
+    }
+    if let Ok(vocabulary) = env::var("UTTER_VOCABULARY") {
+        settings.vocabulary = vocabulary
+            .split(',')
+            .map(|term| term.trim().to_owned())
+            .collect();
+    }
+    let api_key_for = |provider: ProviderId| {
+        env::var(format!("{}_API_KEY", provider.as_str().to_uppercase())).ok()
+    };
     let keys = ApiKeys {
-        transcription: key.clone(),
-        cleanup: key,
+        transcription: api_key_for(settings.transcription.provider),
+        cleanup: api_key_for(settings.cleanup.provider),
     };
     let dictation = pipeline::run(
         &reqwest::Client::new(),
-        &Settings::default(),
+        &settings,
         &keys,
         &read_wav(&path)?,
         &context,

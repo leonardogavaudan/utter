@@ -2,4 +2,4 @@
 import type { ApiFlavor } from "./ApiFlavor";
 import type { ProviderId } from "./ProviderId";
 
-export type ProviderPreset = { id: ProviderId, label: string, api: ApiFlavor, baseUrl: string, transcriptionModel: string | null, cleanupModel: string | null, requiresApiKey: boolean, apiKeyUrl: string | null, };
+export type ProviderPreset = { id: ProviderId, label: string, api: ApiFlavor, baseUrl: string, transcribes: boolean, cleansUp: boolean, transcriptionModel: string | null, cleanupModel: string | null, requiresApiKey: boolean, apiKeyUrl: string | null, };
