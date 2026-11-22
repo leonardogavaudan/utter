@@ -76,5 +76,7 @@ function describeCopyReason(reason: CopyReason): string {
       return "Copied to clipboard, the app changed";
     case "pasteFailed":
       return "Copied. Press ⌘V to paste";
+    case "noTextField":
+      return "No text field found, so it's on your clipboard";
   }
 }

@@ -26,6 +26,7 @@ pub enum CopyReason {
     AccessibilityMissing,
     AppChanged,
     PasteFailed,
+    NoTextField,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]

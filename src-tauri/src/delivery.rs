@@ -37,11 +37,16 @@ fn deliver_blocking(app: &AppHandle, text: &str, target_pid: Option<i32>) -> App
         insert::copy_to_clipboard(text)?;
         return Ok(Delivery::Copied(CopyReason::AppChanged));
     }
+    let text_field_focused = context::is_text_field_focused();
     let staged = insert::stage_text(text)?;
     thread::sleep(CLIPBOARD_SETTLE);
     if let Err(error) = send_paste_keystroke_on_main_thread(app) {
         log::warn!("the paste keystroke failed, leaving the text on the clipboard: {error}");
         return Ok(Delivery::Copied(CopyReason::PasteFailed));
+    }
+    if !text_field_focused {
+        log::info!("no text field had focus, so the text stays on the clipboard");
+        return Ok(Delivery::Copied(CopyReason::NoTextField));
     }
     restore_clipboard_later(staged);
     Ok(Delivery::Pasted)

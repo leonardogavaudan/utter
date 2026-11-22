@@ -65,6 +65,13 @@ pub(crate) fn focused_app_pid() -> Option<i32> {
     frontmost_app().map(|app| app.pid)
 }
 
+pub(crate) fn is_text_field_focused() -> bool {
+    frontmost_app()
+        .map(|frontmost| Element::application(frontmost.pid))
+        .and_then(|app| focused_element(&app))
+        .is_some_and(|element| is_text_input(&element))
+}
+
 fn frontmost_app() -> Option<FrontmostApp> {
     let app = NSWorkspace::sharedWorkspace().frontmostApplication()?;
     Some(FrontmostApp {

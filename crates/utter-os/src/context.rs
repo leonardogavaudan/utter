@@ -19,3 +19,13 @@ pub fn focused_app_pid() -> Option<i32> {
 pub fn focused_app_pid() -> Option<i32> {
     None
 }
+
+#[cfg(target_os = "macos")]
+pub fn is_text_field_focused() -> bool {
+    crate::macos::context::is_text_field_focused()
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn is_text_field_focused() -> bool {
+    true
+}
