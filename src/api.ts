@@ -34,6 +34,7 @@ export const api = {
   restartToUpdate: () => invoke<void>("restart_to_update"),
   getPhase: () => invoke<Phase>("get_phase"),
   getLastDictation: () => invoke<Dictation | null>("get_last_dictation"),
+  copyLastDictation: () => invoke<void>("copy_last_dictation"),
 };
 
 export const events = {

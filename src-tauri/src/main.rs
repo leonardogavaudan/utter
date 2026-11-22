@@ -55,6 +55,7 @@ fn main() {
             commands::restart_to_update,
             commands::get_phase,
             commands::get_last_dictation,
+            commands::copy_last_dictation,
         ])
         .setup(|app| {
             let settings_path = app.path().app_config_dir()?.join("settings.json");

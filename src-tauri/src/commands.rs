@@ -193,3 +193,16 @@ pub fn get_phase(state: State<'_, AppState>) -> Phase {
 pub fn get_last_dictation(state: State<'_, AppState>) -> Option<Dictation> {
     state.last_dictation().clone()
 }
+
+#[tauri::command]
+pub fn copy_last_dictation(state: State<'_, AppState>) -> AppResult<()> {
+    let Some(text) = state
+        .last_dictation()
+        .as_ref()
+        .map(|dictation| dictation.text.trim().to_owned())
+    else {
+        return Ok(());
+    };
+    utter_os::insert::copy_to_clipboard(&text)?;
+    Ok(())
+}
