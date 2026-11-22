@@ -21,6 +21,7 @@ Context-aware voice typing: Tauri 2 app with a Rust workspace and a React UI. Re
 2. Commit, then push a matching tag: `git tag v0.2.0 && git push origin v0.2.0`.
 3. `.github/workflows/release.yml` checks that the tag matches the version, builds a universal app, signs it with the Developer ID certificate, notarizes it, and creates a draft GitHub Release with the `.dmg`, the updater archive and `latest.json`.
 4. Check the draft, then publish it with `gh release edit v0.2.0 --draft=false`. Installed copies find it through `latest.json` within six hours of their next check.
+5. Publishing triggers `.github/workflows/homebrew.yml`, which updates the version and checksum of the `utter` cask in [leonardogavaudan/homebrew-tap](https://github.com/leonardogavaudan/homebrew-tap) through a deploy key that can write only to that repo.
 
 The signing certificate, notarization key and updater key are GitHub Actions secrets (`gh secret list`). Losing the updater private key means installed copies can no longer accept updates, so keep its backup.
 

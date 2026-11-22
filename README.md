@@ -8,7 +8,13 @@ macOS is the first platform. The architecture is cross-platform (Tauri and Rust)
 
 ## Install
 
-Download the latest `.dmg` from [Releases](https://github.com/leonardogavaudan/utter/releases/latest), open it, and drag Utter into Applications. It is signed and notarized by Apple, runs on Apple silicon and Intel Macs with macOS 13 or later, and updates itself.
+Install with [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask leonardogavaudan/tap/utter
+```
+
+Or download the latest `.dmg` from [Releases](https://github.com/leonardogavaudan/utter/releases/latest), open it, and drag Utter into Applications. It is signed and notarized by Apple, runs on Apple silicon and Intel Macs with macOS 13 or later, and updates itself.
 
 On first launch, Utter's setup checklist walks you through allowing Accessibility and the microphone and adding a speech-to-text API key.
 

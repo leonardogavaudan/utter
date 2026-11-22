@@ -1,0 +1,37 @@
+name: homebrew
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  bump-cask:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compute the checksum of the released dmg
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern "Utter_${version}_universal.dmg"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "SHA256=$(sha256sum "Utter_${version}_universal.dmg" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+        with:
+          repository: leonardogavaudan/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
+
+      - name: Update the cask
+        working-directory: tap
+        run: |
+          sed -i -E "s/^  version \".*\"/  version \"$VERSION\"/; s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" Casks/utter.rb
+          if git diff --quiet; then
+            echo "The cask already points at $VERSION"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "utter $VERSION"
+          git push
