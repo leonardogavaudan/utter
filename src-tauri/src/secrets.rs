@@ -32,14 +32,14 @@ impl Secrets {
         }
     }
 
-    pub fn get(&self, provider: ProviderId, role: Role) -> Option<String> {
-        find_environment_key(provider)
+    pub fn get(&self, provider: ProviderId, role: Role, variable: Option<&str>) -> Option<String> {
+        find_environment_key(variable)
             .map(|(_, key)| key)
             .or_else(|| self.find_keychain_key(provider, role))
     }
 
-    pub fn source(&self, provider: ProviderId, role: Role) -> ApiKeySource {
-        if let Some((variable, _)) = find_environment_key(provider) {
+    pub fn source(&self, provider: ProviderId, role: Role, variable: Option<&str>) -> ApiKeySource {
+        if let Some((variable, _)) = find_environment_key(variable) {
             return ApiKeySource::Environment { variable };
         }
         match self.find_keychain_key(provider, role) {
@@ -90,18 +90,35 @@ impl Secrets {
 
     pub fn keys_for(&self, settings: &Settings) -> ApiKeys {
         ApiKeys {
-            transcription: self.get(settings.transcription.provider, Role::Transcription),
+            transcription: self.get(
+                settings.transcription.provider,
+                Role::Transcription,
+                settings.transcription.resolve_api_key_variable().as_deref(),
+            ),
             cleanup: settings
                 .cleanup
                 .enabled
-                .then(|| self.get(settings.cleanup.provider, Role::Cleanup))
+                .then(|| {
+                    self.get(
+                        settings.cleanup.provider,
+                        Role::Cleanup,
+                        settings.cleanup.resolve_api_key_variable().as_deref(),
+                    )
+                })
                 .flatten(),
         }
     }
 
     pub fn has_keys_for(&self, settings: &Settings) -> bool {
         let provider = settings.transcription.provider;
-        !provider.preset().requires_api_key || self.get(provider, Role::Transcription).is_some()
+        !provider.preset().requires_api_key
+            || self
+                .get(
+                    provider,
+                    Role::Transcription,
+                    settings.transcription.resolve_api_key_variable().as_deref(),
+                )
+                .is_some()
     }
 
     fn remember(&self, slot: String, key: Option<String>) {
@@ -112,8 +129,8 @@ impl Secrets {
     }
 }
 
-fn find_environment_key(provider: ProviderId) -> Option<(String, String)> {
-    let variable = provider.api_key_env_var()?;
-    let key = env::var(&variable).ok()?.trim().to_owned();
-    (!key.is_empty()).then_some((variable, key))
+fn find_environment_key(variable: Option<&str>) -> Option<(String, String)> {
+    let variable = variable?;
+    let key = env::var(variable).ok()?.trim().to_owned();
+    (!key.is_empty()).then(|| (variable.to_owned(), key))
 }

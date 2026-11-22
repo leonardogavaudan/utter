@@ -2,6 +2,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use ts_rs::TS;
 use utter_core::pipeline::Dictation;
+use utter_core::settings::Settings;
 
 use crate::{overlay, tray};
 
@@ -9,6 +10,8 @@ pub const PHASE_EVENT: &str = "dictation-phase";
 pub const NOTICE_EVENT: &str = "dictation-notice";
 pub const FINISHED_EVENT: &str = "dictation-finished";
 pub const UPDATE_READY_EVENT: &str = "update-ready";
+pub const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
+pub const SETTINGS_ERROR_EVENT: &str = "settings-error";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -64,6 +67,14 @@ pub fn show_notice(app: &AppHandle, notice: Notice) {
 
 pub fn update_ready(app: &AppHandle, version: &str) {
     emit(app, UPDATE_READY_EVENT, version.to_owned());
+}
+
+pub fn settings_changed(app: &AppHandle, settings: &Settings) {
+    emit(app, SETTINGS_CHANGED_EVENT, settings);
+}
+
+pub fn settings_error(app: &AppHandle, error: Option<String>) {
+    emit(app, SETTINGS_ERROR_EVENT, error);
 }
 
 pub fn dictated(app: &AppHandle, dictation: &Dictation) {

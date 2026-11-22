@@ -6,7 +6,7 @@ import type { Role } from "../bindings/Role";
 import { ApiKeyField } from "./ApiKeyField";
 import { Field } from "./Layout";
 
-export type Endpoint = { provider: ProviderId; baseUrl: string; model: string };
+export type Endpoint = { provider: ProviderId; baseUrl: string; model: string; apiKeyVariable: string | null };
 
 type Check =
   | { state: "idle" }
@@ -40,7 +40,7 @@ export function ProviderFields({
     const next = providers.find((candidate) => candidate.id === id);
     if (!next) return;
     const model = providerRole === "transcription" ? next.transcriptionModel : next.cleanupModel;
-    onChange({ provider: id, baseUrl: next.baseUrl, model: model ?? "" });
+    onChange({ provider: id, baseUrl: next.baseUrl, model: model ?? "", apiKeyVariable: null });
     setModels([]);
     setCheck({ state: "idle" });
   };
@@ -48,7 +48,7 @@ export function ProviderFields({
   const checkConnection = async () => {
     setCheck({ state: "checking" });
     try {
-      const available = await api.listModels(value.provider, providerRole, value.baseUrl);
+      const available = await api.listModels(value.provider, providerRole, value.baseUrl, value.apiKeyVariable);
       setModels(available);
       setCheck({ state: "ok", count: available.length });
     } catch (error) {
@@ -71,7 +71,7 @@ export function ProviderFields({
           </select>
         )}
       </Field>
-      {preset && <ApiKeyField preset={preset} providerRole={providerRole} />}
+      {preset && <ApiKeyField preset={preset} providerRole={providerRole} apiKeyVariable={value.apiKeyVariable} />}
       <Field
         label="Model"
         hint={<span className={check.state === "error" ? "is-error" : undefined}>{describeCheck(check)}</span>}
@@ -97,14 +97,12 @@ export function ProviderFields({
           </span>
         )}
       </Field>
-      {LOCAL_PROVIDERS.includes(value.provider) ? (
-        <BaseUrlField value={value} onChange={onChange} />
-      ) : (
-        <details className="advanced">
-          <summary>Advanced</summary>
-          <BaseUrlField value={value} onChange={onChange} />
-        </details>
-      )}
+      {LOCAL_PROVIDERS.includes(value.provider) && <BaseUrlField value={value} onChange={onChange} />}
+      <details className="advanced">
+        <summary>Advanced</summary>
+        {!LOCAL_PROVIDERS.includes(value.provider) && <BaseUrlField value={value} onChange={onChange} />}
+        <ApiKeyVariableField value={value} defaultVariable={preset?.apiKeyVariable ?? null} onChange={onChange} />
+      </details>
     </>
   );
 }
@@ -132,6 +130,34 @@ function BaseUrlField({ value, onChange }: { value: Endpoint; onChange: (endpoin
           placeholder="https://example.com/v1"
           spellCheck={false}
           onChange={(event) => onChange({ ...value, baseUrl: event.target.value })}
+        />
+      )}
+    </Field>
+  );
+}
+
+function ApiKeyVariableField({
+  value,
+  defaultVariable,
+  onChange,
+}: {
+  value: Endpoint;
+  defaultVariable: string | null;
+  onChange: (endpoint: Endpoint) => void;
+}) {
+  return (
+    <Field
+      label="API key variable"
+      hint="Utter reads the key from this environment variable before the Keychain. Leave empty for the default."
+    >
+      {(control) => (
+        <input
+          {...control}
+          value={value.apiKeyVariable ?? ""}
+          placeholder={defaultVariable ?? "None"}
+          spellCheck={false}
+          autoCapitalize="characters"
+          onChange={(event) => onChange({ ...value, apiKeyVariable: event.target.value || null })}
         />
       )}
     </Field>

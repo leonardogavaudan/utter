@@ -11,6 +11,7 @@ use utter_os::permissions::{self, MicrophoneAccess, Permission};
 use crate::error::{AppError, AppResult};
 use crate::events::Phase;
 use crate::secrets::ApiKeySource;
+use crate::settings_file;
 use crate::shortcut;
 use crate::state::AppState;
 
@@ -77,7 +78,13 @@ pub fn save_settings(
         *state.shortcut_error() = None;
     }
     *state.settings_mut() = settings.clone();
+    settings_file::clear_error(&app);
     Ok(settings)
+}
+
+#[tauri::command]
+pub fn get_settings_error(state: State<'_, AppState>) -> Option<String> {
+    state.settings_error().clone()
 }
 
 #[tauri::command]
@@ -91,9 +98,11 @@ pub async fn list_models(
     provider: ProviderId,
     role: Role,
     base_url: String,
+    api_key_variable: Option<String>,
 ) -> AppResult<Vec<String>> {
     let preset = provider.preset();
-    let api_key = state.secrets.get(provider, role);
+    let variable = provider.resolve_api_key_variable(api_key_variable.as_deref());
+    let api_key = state.secrets.get(provider, role, variable.as_deref());
     if api_key.is_none() && preset.requires_api_key {
         return Err(utter_core::Error::MissingApiKey(preset.label.to_owned()).into());
     }
@@ -105,8 +114,10 @@ pub fn get_api_key_source(
     state: State<'_, AppState>,
     provider: ProviderId,
     role: Role,
+    api_key_variable: Option<String>,
 ) -> ApiKeySource {
-    state.secrets.source(provider, role)
+    let variable = provider.resolve_api_key_variable(api_key_variable.as_deref());
+    state.secrets.source(provider, role, variable.as_deref())
 }
 
 #[tauri::command]

@@ -6,17 +6,25 @@ import type { ProviderPreset } from "../bindings/ProviderPreset";
 import type { Role } from "../bindings/Role";
 import { Field } from "./Layout";
 
-export function ApiKeyField({ preset, providerRole }: { preset: ProviderPreset; providerRole: Role }) {
+export function ApiKeyField({
+  preset,
+  providerRole,
+  apiKeyVariable,
+}: {
+  preset: ProviderPreset;
+  providerRole: Role;
+  apiKeyVariable: string | null;
+}) {
   const [source, setSource] = useState<ApiKeySource | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     api
-      .getApiKeySource(preset.id, providerRole)
+      .getApiKeySource(preset.id, providerRole, apiKeyVariable)
       .then(setSource)
       .catch((reason: unknown) => setError(errorMessage(reason)));
-  }, [preset.id, providerRole]);
+  }, [preset.id, providerRole, apiKeyVariable]);
 
   useEffect(() => {
     setDraft("");

@@ -3,6 +3,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use ts_rs::TS;
 
 use crate::context::ContextMode;
@@ -28,6 +29,7 @@ pub struct TranscriptionSettings {
     pub base_url: String,
     pub model: String,
     pub language: Option<String>,
+    pub api_key_variable: Option<String>,
 }
 
 impl TranscriptionSettings {
@@ -38,7 +40,21 @@ impl TranscriptionSettings {
             base_url: preset.base_url.to_owned(),
             model: preset.transcription_model.unwrap_or_default().to_owned(),
             language: None,
+            api_key_variable: None,
         }
+    }
+
+    pub fn switch_provider(&mut self, provider: ProviderId) {
+        let defaults = TranscriptionSettings::for_provider(provider);
+        self.provider = defaults.provider;
+        self.base_url = defaults.base_url;
+        self.model = defaults.model;
+        self.api_key_variable = None;
+    }
+
+    pub fn resolve_api_key_variable(&self) -> Option<String> {
+        self.provider
+            .resolve_api_key_variable(self.api_key_variable.as_deref())
     }
 }
 
@@ -57,6 +73,22 @@ pub struct CleanupSettings {
     pub base_url: String,
     pub model: String,
     pub instructions: String,
+    pub api_key_variable: Option<String>,
+}
+
+impl CleanupSettings {
+    pub fn switch_provider(&mut self, provider: ProviderId) {
+        let preset = provider.preset();
+        self.provider = provider;
+        self.base_url = preset.base_url.to_owned();
+        self.model = preset.cleanup_model.unwrap_or_default().to_owned();
+        self.api_key_variable = None;
+    }
+
+    pub fn resolve_api_key_variable(&self) -> Option<String> {
+        self.provider
+            .resolve_api_key_variable(self.api_key_variable.as_deref())
+    }
 }
 
 impl Default for CleanupSettings {
@@ -68,6 +100,7 @@ impl Default for CleanupSettings {
             base_url: preset.base_url.to_owned(),
             model: preset.cleanup_model.unwrap_or_default().to_owned(),
             instructions: String::new(),
+            api_key_variable: None,
         }
     }
 }
@@ -113,6 +146,39 @@ impl Settings {
         }
     }
 
+    pub fn load_and_validate(path: &Path) -> Result<Settings> {
+        let settings = Settings::load(path)?.normalized();
+        settings.validate()?;
+        Ok(settings)
+    }
+
+    pub fn value_at(&self, path: &str) -> Result<Value> {
+        let root =
+            serde_json::to_value(self).map_err(|error| Error::Settings(error.to_string()))?;
+        Ok(find_setting(&root, path)?.clone())
+    }
+
+    pub fn with_value(&self, path: &str, raw: &str) -> Result<Settings> {
+        let mut root =
+            serde_json::to_value(self).map_err(|error| Error::Settings(error.to_string()))?;
+        find_setting(&root, path)?;
+        set_setting(&mut root, path, parse_setting_value(raw));
+        let mut next: Settings = serde_json::from_value(root)
+            .map_err(|error| Error::Settings(format!("{path}: {error}")))?;
+        if path == "transcription.provider"
+            && next.transcription.provider != self.transcription.provider
+        {
+            next.transcription
+                .switch_provider(next.transcription.provider);
+        }
+        if path == "cleanup.provider" && next.cleanup.provider != self.cleanup.provider {
+            next.cleanup.switch_provider(next.cleanup.provider);
+        }
+        let next = next.normalized();
+        next.validate()?;
+        Ok(next)
+    }
+
     pub fn save(&self, path: &Path) -> Result<()> {
         let json = serde_json::to_string_pretty(self)
             .map_err(|error| Error::Settings(error.to_string()))?;
@@ -151,6 +217,9 @@ impl Settings {
             .to_owned();
         self.cleanup.model = self.cleanup.model.trim().to_owned();
         self.cleanup.instructions = self.cleanup.instructions.trim().to_owned();
+        self.transcription.api_key_variable =
+            normalize_variable(self.transcription.api_key_variable);
+        self.cleanup.api_key_variable = normalize_variable(self.cleanup.api_key_variable);
         let mut seen = std::collections::HashSet::new();
         self.vocabulary = self
             .vocabulary
@@ -177,6 +246,10 @@ impl Settings {
             &self.transcription.base_url,
             &self.transcription.model,
         )?;
+        validate_variable(
+            "speech-to-text",
+            self.transcription.api_key_variable.as_deref(),
+        )?;
         if self.cleanup.enabled {
             if !self.cleanup.provider.supports(Role::Cleanup) {
                 return Err(Error::Settings(format!(
@@ -185,9 +258,72 @@ impl Settings {
                 )));
             }
             validate_endpoint("cleanup", &self.cleanup.base_url, &self.cleanup.model)?;
+            validate_variable("cleanup", self.cleanup.api_key_variable.as_deref())?;
         }
         Ok(())
     }
+}
+
+fn normalize_variable(variable: Option<String>) -> Option<String> {
+    variable
+        .map(|variable| variable.trim().to_owned())
+        .filter(|variable| !variable.is_empty())
+}
+
+fn validate_variable(name: &str, variable: Option<&str>) -> Result<()> {
+    let Some(variable) = variable else {
+        return Ok(());
+    };
+    let mut characters = variable.chars();
+    let starts_well = characters
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_');
+    if !starts_well || !characters.all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(Error::Settings(format!(
+            "the {name} API key variable `{variable}` must use only letters, digits and underscores, and not start with a digit"
+        )));
+    }
+    Ok(())
+}
+
+fn find_setting<'a>(root: &'a Value, path: &str) -> Result<&'a Value> {
+    let mut current = root;
+    let mut walked = Vec::new();
+    for segment in path.split('.') {
+        let Value::Object(fields) = current else {
+            return Err(Error::Settings(format!(
+                "`{}` has no settings inside it",
+                walked.join(".")
+            )));
+        };
+        let Some(next) = fields.get(segment) else {
+            let parent = if walked.is_empty() {
+                "Settings".to_owned()
+            } else {
+                format!("`{}`", walked.join("."))
+            };
+            let names: Vec<&str> = fields.keys().map(String::as_str).collect();
+            return Err(Error::Settings(format!(
+                "unknown setting `{path}`. {parent} has: {}",
+                names.join(", ")
+            )));
+        };
+        walked.push(segment);
+        current = next;
+    }
+    Ok(current)
+}
+
+fn set_setting(root: &mut Value, path: &str, value: Value) {
+    let mut current = root;
+    for segment in path.split('.') {
+        current = &mut current[segment];
+    }
+    *current = value;
+}
+
+fn parse_setting_value(raw: &str) -> Value {
+    serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.to_owned()))
 }
 
 fn validate_endpoint(name: &str, base_url: &str, model: &str) -> Result<()> {
@@ -294,5 +430,104 @@ mod tests {
         settings
             .validate()
             .expect("disabled cleanup is not validated");
+    }
+
+    #[test]
+    fn sets_values_by_name_and_parses_json_or_plain_text() {
+        let settings = Settings::default();
+        let toggled = settings.with_value("trigger", "toggle").expect("sets");
+        assert_eq!(toggled.trigger, TriggerMode::Toggle);
+        let disabled = settings
+            .with_value("cleanup.enabled", "false")
+            .expect("sets");
+        assert!(!disabled.cleanup.enabled);
+        let french = settings
+            .with_value("transcription.language", "FR")
+            .expect("sets");
+        assert_eq!(french.transcription.language.as_deref(), Some("fr"));
+        let automatic = french
+            .with_value("transcription.language", "null")
+            .expect("sets");
+        assert_eq!(automatic.transcription.language, None);
+        let terms = settings
+            .with_value("vocabulary", r#"["Tauri", "Siobhan"]"#)
+            .expect("sets");
+        assert_eq!(terms.vocabulary, vec!["Tauri", "Siobhan"]);
+        assert_eq!(
+            terms.value_at("vocabulary").expect("reads"),
+            serde_json::json!(["Tauri", "Siobhan"])
+        );
+    }
+
+    #[test]
+    fn switching_provider_by_name_brings_its_address_and_model() {
+        let settings = Settings::default()
+            .with_value("transcription.apiKeyVariable", "MY_GROQ_KEY")
+            .expect("sets");
+        let switched = settings
+            .with_value("transcription.provider", "elevenlabs")
+            .expect("sets");
+        assert_eq!(
+            switched.transcription,
+            TranscriptionSettings::for_provider(ProviderId::ElevenLabs)
+        );
+        let same = settings
+            .with_value("transcription.provider", "groq")
+            .expect("sets");
+        assert_eq!(
+            same.transcription.api_key_variable.as_deref(),
+            Some("MY_GROQ_KEY")
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_names_wrong_types_and_impossible_settings() {
+        let settings = Settings::default();
+        let unknown = settings
+            .with_value("transcription.modle", "x")
+            .expect_err("fails");
+        assert!(unknown.to_string().contains("transcription.modle"));
+        assert!(unknown.to_string().contains("model"));
+        let typo = settings
+            .with_value("transcription.provider", "elevenlab")
+            .expect_err("fails");
+        assert!(typo.to_string().contains("elevenlabs"));
+        assert!(settings.with_value("cleanup.enabled", "maybe").is_err());
+        assert!(
+            settings
+                .with_value("cleanup.provider", "elevenlabs")
+                .is_err()
+        );
+        assert!(settings.with_value("shortcut.key", "x").is_err());
+        assert!(
+            settings
+                .with_value("cleanup.apiKeyVariable", "1BAD-NAME")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn resolves_the_api_key_variable_for_each_endpoint() {
+        let settings = Settings::default()
+            .with_value("transcription.provider", "elevenlabs")
+            .and_then(|settings| settings.with_value("cleanup.apiKeyVariable", "  WORK_GROQ_KEY "))
+            .expect("sets");
+        assert_eq!(
+            settings.transcription.resolve_api_key_variable().as_deref(),
+            Some("ELEVENLABS_API_KEY")
+        );
+        assert_eq!(
+            settings.cleanup.resolve_api_key_variable().as_deref(),
+            Some("WORK_GROQ_KEY")
+        );
+    }
+
+    #[test]
+    fn load_and_validate_rejects_a_file_that_parses_but_cannot_work() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("settings.json");
+        fs::write(&path, r#"{"transcription": {"provider": "anthropic"}}"#).expect("writes");
+        assert!(Settings::load(&path).is_ok());
+        assert!(Settings::load_and_validate(&path).is_err());
     }
 }

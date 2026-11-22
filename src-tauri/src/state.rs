@@ -19,6 +19,7 @@ pub struct AppState {
     pub session: Mutex<Session>,
     pub last_dictation: Mutex<Option<Dictation>>,
     pub shortcut_error: Mutex<Option<String>>,
+    pub settings_error: Mutex<Option<String>>,
     pub pending_update: Mutex<Option<String>>,
 }
 
@@ -40,6 +41,7 @@ impl AppState {
             session: Mutex::new(Session::Idle),
             last_dictation: Mutex::new(None),
             shortcut_error: Mutex::new(None),
+            settings_error: Mutex::new(None),
             pending_update: Mutex::new(None),
         })
     }
@@ -66,6 +68,12 @@ impl AppState {
 
     pub fn shortcut_error(&self) -> MutexGuard<'_, Option<String>> {
         self.shortcut_error
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn settings_error(&self) -> MutexGuard<'_, Option<String>> {
+        self.settings_error
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
     }

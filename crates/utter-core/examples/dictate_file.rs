@@ -28,14 +28,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .map(|term| term.trim().to_owned())
             .collect();
     }
-    let api_key_for = |provider: ProviderId| {
-        provider
-            .api_key_env_var()
-            .and_then(|name| env::var(name).ok())
-    };
+    let read_key = |variable: Option<String>| variable.and_then(|name| env::var(name).ok());
     let keys = ApiKeys {
-        transcription: api_key_for(settings.transcription.provider),
-        cleanup: api_key_for(settings.cleanup.provider),
+        transcription: read_key(settings.transcription.resolve_api_key_variable()),
+        cleanup: read_key(settings.cleanup.resolve_api_key_variable()),
     };
     let dictation = pipeline::run(
         &reqwest::Client::new(),

@@ -61,9 +61,26 @@ Press Escape while recording to cancel. Recordings stop on their own after five 
 
 Speech-to-text and cleanup can use different providers. A provider's key is shared between the two, except for Custom endpoints, which each keep their own.
 
-If a hosted provider's key is in Utter's environment under the usual name (`GROQ_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`), Utter uses it instead of the Keychain, and Settings shows which variable it came from. Apps opened from the Dock get their environment from launchd, so set it there, for example with `launchctl setenv GROQ_API_KEY ...`.
+Utter reads each key from an environment variable before the Keychain. By default that is the provider's usual name (`GROQ_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`); choose another under Advanced, or with `apiKeyVariable` in the settings. Settings shows which variable a key came from. Apps opened from the Dock get their environment from launchd, so set it there, for example with `launchctl setenv GROQ_API_KEY ...`.
 
 Your vocabulary list reaches each speech-to-text model in the form it understands: as the prompt for OpenAI-compatible models, and as keyterms for ElevenLabs (up to 100 terms of at most 5 words each; ElevenLabs charges 20% more for keyterms).
+
+## Scripts and agents
+
+Everything in the Settings window can be changed without it, and the running app applies each change right away.
+
+```sh
+utter status                                   # settings file, providers, where each key comes from
+utter get transcription                        # settings as JSON
+utter set transcription.provider elevenlabs    # also sets its address and default model
+utter set transcription.apiKeyVariable MY_KEY  # read the key from $MY_KEY
+utter set cleanup.enabled false
+utter key set groq < key.txt                   # save a key in the Keychain instead
+```
+
+`utter set` checks the name and value before saving and exits with an error message otherwise, for example `unknown variant elevenlab, expected one of groq, openai, ...`. Homebrew links `utter` onto your PATH; otherwise it is `/Applications/Utter.app/Contents/MacOS/utter`.
+
+The settings are a JSON file at `~/Library/Application Support/dev.utter.desktop/settings.json`, and editing it directly works too. Utter watches the file: a valid change applies at once, and an invalid one is refused while Utter keeps its last good settings and shows the problem in the Settings window.
 
 ## Development
 

@@ -46,7 +46,8 @@ const CONTEXT_OPTIONS: { value: ContextMode; title: string; description: string 
 ];
 
 export function SettingsApp() {
-  const { saved, draft, dirty, saving, loadError, saveError, shortcutError, update, save, revert } = useSettings();
+  const { saved, draft, dirty, saving, loadError, saveError, shortcutError, settingsError, update, save, revert } =
+    useSettings();
   const [providers, setProviders] = useState<ProviderPreset[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
 
@@ -81,6 +82,12 @@ export function SettingsApp() {
 
       <main>
         <UpdateBanner />
+        {settingsError && (
+          <section className="settings-error-banner" role="alert">
+            <strong>Utter could not use the latest settings.json, so it kept your last good settings.</strong>
+            <span>{settingsError}</span>
+          </section>
+        )}
         <SetupChecklist settings={saved} />
 
         <Section title="Recording">

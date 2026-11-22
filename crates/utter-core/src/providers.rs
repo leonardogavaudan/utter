@@ -50,6 +50,7 @@ pub struct ProviderPreset {
     pub transcription_model: Option<&'static str>,
     pub cleanup_model: Option<&'static str>,
     pub requires_api_key: bool,
+    pub api_key_variable: Option<&'static str>,
     pub api_key_url: Option<&'static str>,
 }
 
@@ -64,6 +65,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: Some("whisper-large-v3"),
         cleanup_model: Some("openai/gpt-oss-20b"),
         requires_api_key: true,
+        api_key_variable: Some("GROQ_API_KEY"),
         api_key_url: Some("https://console.groq.com/keys"),
     },
     ProviderPreset {
@@ -76,6 +78,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: Some("gpt-4o-transcribe"),
         cleanup_model: Some("gpt-5-mini"),
         requires_api_key: true,
+        api_key_variable: Some("OPENAI_API_KEY"),
         api_key_url: Some("https://platform.openai.com/api-keys"),
     },
     ProviderPreset {
@@ -88,6 +91,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: None,
         cleanup_model: Some("openai/gpt-oss-20b"),
         requires_api_key: true,
+        api_key_variable: Some("OPENROUTER_API_KEY"),
         api_key_url: Some("https://openrouter.ai/settings/keys"),
     },
     ProviderPreset {
@@ -100,6 +104,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: None,
         cleanup_model: Some("claude-opus-5-5"),
         requires_api_key: true,
+        api_key_variable: Some("ANTHROPIC_API_KEY"),
         api_key_url: Some("https://platform.claude.com/settings/keys"),
     },
     ProviderPreset {
@@ -112,6 +117,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: None,
         cleanup_model: Some("llama3.2"),
         requires_api_key: false,
+        api_key_variable: None,
         api_key_url: None,
     },
     ProviderPreset {
@@ -124,6 +130,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: None,
         cleanup_model: None,
         requires_api_key: false,
+        api_key_variable: None,
         api_key_url: None,
     },
     ProviderPreset {
@@ -136,6 +143,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: None,
         cleanup_model: None,
         requires_api_key: false,
+        api_key_variable: None,
         api_key_url: None,
     },
     ProviderPreset {
@@ -148,6 +156,7 @@ pub const PRESETS: &[ProviderPreset] = &[
         transcription_model: Some("scribe_v3"),
         cleanup_model: None,
         requires_api_key: true,
+        api_key_variable: Some("ELEVENLABS_API_KEY"),
         api_key_url: Some("https://elevenlabs.io/app/developers/api-keys"),
     },
 ];
@@ -177,10 +186,12 @@ impl ProviderId {
         }
     }
 
-    pub fn api_key_env_var(self) -> Option<String> {
-        self.preset()
-            .requires_api_key
-            .then(|| format!("{}_API_KEY", self.as_str().to_uppercase()))
+    pub fn resolve_api_key_variable(self, configured: Option<&str>) -> Option<String> {
+        configured
+            .map(str::trim)
+            .filter(|variable| !variable.is_empty())
+            .or(self.preset().api_key_variable)
+            .map(str::to_owned)
     }
 
     pub fn as_str(self) -> &'static str {
@@ -353,21 +364,40 @@ mod tests {
     }
 
     #[test]
-    fn hosted_providers_read_the_conventional_environment_variable() {
+    fn hosted_providers_default_to_the_conventional_environment_variable() {
+        for preset in PRESETS {
+            assert_eq!(
+                preset.api_key_variable.is_some(),
+                preset.requires_api_key,
+                "{:?}",
+                preset.id
+            );
+        }
         assert_eq!(
-            ProviderId::Groq.api_key_env_var().as_deref(),
-            Some("GROQ_API_KEY")
-        );
-        assert_eq!(
-            ProviderId::ElevenLabs.api_key_env_var().as_deref(),
+            ProviderId::ElevenLabs
+                .resolve_api_key_variable(None)
+                .as_deref(),
             Some("ELEVENLABS_API_KEY")
         );
         assert_eq!(
-            ProviderId::OpenAi.api_key_env_var().as_deref(),
-            Some("OPENAI_API_KEY")
+            ProviderId::ElevenLabs
+                .resolve_api_key_variable(Some(" MY_SCRIBE_KEY "))
+                .as_deref(),
+            Some("MY_SCRIBE_KEY")
         );
-        assert_eq!(ProviderId::Ollama.api_key_env_var(), None);
-        assert_eq!(ProviderId::Custom.api_key_env_var(), None);
+        assert_eq!(
+            ProviderId::Groq
+                .resolve_api_key_variable(Some(""))
+                .as_deref(),
+            Some("GROQ_API_KEY")
+        );
+        assert_eq!(ProviderId::Custom.resolve_api_key_variable(None), None);
+        assert_eq!(
+            ProviderId::Custom
+                .resolve_api_key_variable(Some("LOCAL_KEY"))
+                .as_deref(),
+            Some("LOCAL_KEY")
+        );
     }
 
     #[test]

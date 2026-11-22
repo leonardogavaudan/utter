@@ -10,6 +10,8 @@ Context-aware voice typing: Tauri 2 app with a Rust workspace and a React UI. Re
 
 ## Conventions
 
+- Settings change through one path whichever way they arrive. The Settings window, an edit of `settings.json` and the `utter` CLI (`src-tauri/src/cli.rs`) all end in `Settings::normalized` and `Settings::validate`, and the running app applies them in `settings_file.rs`. Add a new setting to `Settings` and it works in all three; put its rules in `validate`, not in the UI or the CLI.
+
 - Types the UI uses derive `ts_rs::TS` with `#[ts(export)]`. Run `bun run bindings` after changing them and never edit `src/bindings` by hand. Use `u32` rather than `u64` for numbers the UI reads, since ts-rs maps `u64` to `bigint`.
 - Never log dictated text, transcripts, or context; log sizes and timings only.
 - No code comments: put the reason for a choice in the commit message.

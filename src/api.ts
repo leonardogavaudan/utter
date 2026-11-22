@@ -19,9 +19,10 @@ export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   listProviders: () => invoke<ProviderPreset[]>("list_providers"),
-  listModels: (provider: ProviderId, role: Role, baseUrl: string) =>
-    invoke<string[]>("list_models", { provider, role, baseUrl }),
-  getApiKeySource: (provider: ProviderId, role: Role) => invoke<ApiKeySource>("get_api_key_source", { provider, role }),
+  listModels: (provider: ProviderId, role: Role, baseUrl: string, apiKeyVariable: string | null) =>
+    invoke<string[]>("list_models", { provider, role, baseUrl, apiKeyVariable }),
+  getApiKeySource: (provider: ProviderId, role: Role, apiKeyVariable: string | null) =>
+    invoke<ApiKeySource>("get_api_key_source", { provider, role, apiKeyVariable }),
   setApiKey: (provider: ProviderId, role: Role, apiKey: string) =>
     invoke<void>("set_api_key", { provider, role, apiKey }),
   deleteApiKey: (provider: ProviderId, role: Role) => invoke<void>("delete_api_key", { provider, role }),
@@ -31,6 +32,7 @@ export const api = {
   requestMicrophone: () => invoke<MicrophoneStatus>("request_microphone"),
   openPermissionSettings: (permission: PermissionKind) => invoke<void>("open_permission_settings", { permission }),
   getShortcutError: () => invoke<string | null>("get_shortcut_error"),
+  getSettingsError: () => invoke<string | null>("get_settings_error"),
   getPendingUpdate: () => invoke<string | null>("get_pending_update"),
   restartToUpdate: () => invoke<void>("restart_to_update"),
   getPhase: () => invoke<Phase>("get_phase"),
@@ -47,6 +49,10 @@ export const events = {
     listen<Dictation>("dictation-finished", (event) => handler(event.payload)),
   onUpdateReady: (handler: (version: string) => void): Promise<UnlistenFn> =>
     listen<string>("update-ready", (event) => handler(event.payload)),
+  onSettingsChanged: (handler: (settings: Settings) => void): Promise<UnlistenFn> =>
+    listen<Settings>("settings-changed", (event) => handler(event.payload)),
+  onSettingsError: (handler: (error: string | null) => void): Promise<UnlistenFn> =>
+    listen<string | null>("settings-error", (event) => handler(event.payload)),
 };
 
 export function errorMessage(error: unknown): string {

@@ -12,9 +12,9 @@ export function SetupChecklist({ settings }: { settings: Settings }) {
   const refresh = useCallback(() => {
     void api.getPermissions().then(setPermissions);
     void api
-      .getApiKeySource(settings.transcription.provider, "transcription")
+      .getApiKeySource(settings.transcription.provider, "transcription", settings.transcription.apiKeyVariable)
       .then((source) => setHasTranscriptionKey(source.kind !== "missing"));
-  }, [settings.transcription.provider]);
+  }, [settings.transcription.provider, settings.transcription.apiKeyVariable]);
 
   useEffect(() => {
     refresh();

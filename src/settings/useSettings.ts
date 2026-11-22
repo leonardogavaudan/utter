@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, errorMessage } from "../api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, errorMessage, events } from "../api";
 import type { Settings } from "../bindings/Settings";
+import { useTauriEvent } from "../useTauriEvent";
+
+function sameSettings(left: Settings | null, right: Settings | null): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
 
 export function useSettings() {
   const [saved, setSaved] = useState<Settings | null>(null);
@@ -9,23 +14,38 @@ export function useSettings() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const savedRef = useRef<Settings | null>(null);
+
+  const acceptSaved = useCallback((settings: Settings) => {
+    savedRef.current = settings;
+    setSaved(settings);
+  }, []);
 
   useEffect(() => {
     api
       .getSettings()
       .then((settings) => {
-        setSaved(settings);
+        acceptSaved(settings);
         setDraft(settings);
       })
-      .then(() => api.getShortcutError())
-      .then(setShortcutError)
+      .then(() => Promise.all([api.getShortcutError(), api.getSettingsError()]))
+      .then(([shortcut, settingsFile]) => {
+        setShortcutError(shortcut);
+        setSettingsError(settingsFile);
+      })
       .catch((error: unknown) => setLoadError(errorMessage(error)));
-  }, []);
+  }, [acceptSaved]);
 
-  const dirty = useMemo(
-    () => saved !== null && draft !== null && JSON.stringify(saved) !== JSON.stringify(draft),
-    [saved, draft],
-  );
+  useTauriEvent(events.onSettingsChanged, (settings) => {
+    const previous = savedRef.current;
+    setDraft((current) => (current === null || sameSettings(current, previous) ? settings : current));
+    acceptSaved(settings);
+    void api.getShortcutError().then(setShortcutError);
+  });
+  useTauriEvent(events.onSettingsError, setSettingsError);
+
+  const dirty = useMemo(() => saved !== null && draft !== null && !sameSettings(saved, draft), [saved, draft]);
 
   const update = useCallback((change: (settings: Settings) => Settings) => {
     setDraft((current) => (current ? change(current) : current));
@@ -37,21 +57,34 @@ export function useSettings() {
     setSaving(true);
     try {
       const stored = await api.saveSettings(draft);
-      setSaved(stored);
+      acceptSaved(stored);
       setDraft(stored);
       setSaveError(null);
+      setSettingsError(null);
       setShortcutError(await api.getShortcutError());
     } catch (error) {
       setSaveError(errorMessage(error));
     } finally {
       setSaving(false);
     }
-  }, [draft]);
+  }, [draft, acceptSaved]);
 
   const revert = useCallback(() => {
     setDraft(saved);
     setSaveError(null);
   }, [saved]);
 
-  return { saved, draft, dirty, saving, loadError, saveError, shortcutError, update, save, revert };
+  return {
+    saved,
+    draft,
+    dirty,
+    saving,
+    loadError,
+    saveError,
+    shortcutError,
+    settingsError,
+    update,
+    save,
+    revert,
+  };
 }
